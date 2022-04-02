@@ -39,3 +39,7 @@ pkg/controller/controller.go:67
 统一调用注册方法Register将结构化的controller实例注册到一个公共的map实例known中
 
 pkg/controller/register.go:46
+
+
+### controller的工作流程
+![image](docs/controllers_work.png)

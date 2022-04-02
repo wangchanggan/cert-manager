@@ -57,7 +57,7 @@ func NewController(
 		ctx:              ctx,
 		name:             name,
 		metrics:          metrics,
-		syncHandler:      syncFunc,
+		syncHandler:      syncFunc,   // 注册controller 队列的处理函数
 		mustSync:         mustSync,
 		runDurationFuncs: runDurationFuncs,
 		queue:            queue,
@@ -99,6 +99,7 @@ type controller struct {
 }
 
 // Run starts the controller loop
+// 给每个controller 实例单独启动一个协程用于执行controller 注册的启动Run 函数
 func (c *controller) Run(workers int, stopCh <-chan struct{}) error {
 	ctx, cancel := context.WithCancel(c.ctx)
 	defer cancel()
@@ -106,6 +107,7 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) error {
 
 	log.V(logf.DebugLevel).Info("starting control loop")
 	// wait for all the informer caches we depend on are synced
+	// 等待所有mustSync 队列中的informers 完成同步
 	if !cache.WaitForCacheSync(stopCh, c.mustSync...) {
 		return fmt.Errorf("error waiting for informer caches to sync")
 	}
@@ -115,10 +117,12 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			// worker 启动执行，在loop 中进行工作队列的调谐处理
 			c.worker(ctx)
 		}()
 	}
 
+	// 执行构建器with 方法中注册的定时任务
 	for _, f := range c.runFirstFuncs {
 		f(ctx)
 	}
@@ -136,6 +140,8 @@ func (c *controller) Run(workers int, stopCh <-chan struct{}) error {
 	return nil
 }
 
+// 在一个loop 循环中，worker 会从controller 对应的工作队列中不断取出事件对应的index 标签，然后调用之前controller 注册过的syncHandler方法进行相应的事件处理
+// 如果处理失败，worker 会重新将index 对象压入工作队列再次进行处理；如果处理成功，就将其从队列中删除
 func (c *controller) worker(ctx context.Context) {
 	log := logf.FromContext(c.ctx)
 
@@ -160,6 +166,7 @@ func (c *controller) worker(ctx context.Context) {
 			// Increase sync count for this controller
 			c.metrics.IncrementSyncCallCount(c.name)
 
+			// 由各controller 实现的ProcessItem方法
 			err := c.syncHandler(ctx, key)
 			if err != nil {
 				if strings.Contains(err.Error(), genericregistry.OptimisticLockErrorMsg) {

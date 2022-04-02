@@ -61,6 +61,7 @@ func NewBuilder(controllerctx *Context, name string) *Builder {
 	}
 }
 
+// 根据不同controller 的结构体初始化builder 中的queueingController
 func (b *Builder) For(ctrl queueingController) *Builder {
 	b.impl = ctrl
 	return b
@@ -69,6 +70,8 @@ func (b *Builder) For(ctrl queueingController) *Builder {
 // With will register an additional function that should be called every
 // 'duration' alongside the controller.
 // This is useful if a controller needs to periodically run a scheduled task.
+// 对于需要在controllers 运行过程中执行一些定时任务的controller实例，通过构建器中的With方法定义相关的scheduler 任务
+// 用于注册伴随controller 运行定时执行的额外任务
 func (b *Builder) With(function func(context.Context), duration time.Duration) *Builder {
 	b.runDurationFuncs = append(b.runDurationFuncs, runDurationFunc{
 		fn:       function,
@@ -92,6 +95,8 @@ func (b *Builder) Complete() (Interface, error) {
 	if b.impl == nil {
 		return nil, fmt.Errorf("controller implementation must be non-nil")
 	}
+	// 调用各controller 的注册方法
+	// 完成包括工作队列和informers在内的一些相关初始化工作，同时还会在指定的informer中添加对监控模型匹配的EventHandler
 	queue, mustSync, err := b.impl.Register(b.context)
 	if err != nil {
 		return nil, fmt.Errorf("error registering controller: %v", err)

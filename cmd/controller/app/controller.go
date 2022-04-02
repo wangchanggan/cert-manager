@@ -189,10 +189,13 @@ func Run(opts *options.ControllerOptions, stopCh <-chan struct{}) error {
 		// Continue with setting up controller
 	}
 
+	// 初始化整个cert-manager实例的执行闭包run
+	// 闭包中首先会遍历之前注册到map实例known中的所有controller实例，遍历过程中会首先根据启动参数配置和scope工作域过滤掉一些无须启动的controller
 	for n, fn := range controller.Known() {
 		log := log.WithValues("controller", n)
 
 		// only run a controller if it's been enabled
+		// 过滤需要启动的controllers
 		if !enabledControllers.Has(n) {
 			log.V(logf.InfoLevel).Info("not starting controller as it's disabled")
 			continue
@@ -216,6 +219,7 @@ func Run(opts *options.ControllerOptions, stopCh <-chan struct{}) error {
 			return err
 		}
 
+		// 定义一个协程用于启动controller，默认为每个controller分配5个并发的worker协程用于其工作队列的处理
 		g.Go(func() error {
 			log.V(logf.InfoLevel).Info("starting controller")
 
@@ -242,6 +246,7 @@ func Run(opts *options.ControllerOptions, stopCh <-chan struct{}) error {
 	return nil
 }
 
+// 进行controller 的上下文构建，包括在目标机器中Client、Informer实例以及各controller的启动参数配置项的设置工作
 func buildControllerContext(ctx context.Context, opts *options.ControllerOptions) (*controller.Context, *rest.Config, error) {
 	log := logf.FromContext(ctx, "build-context")
 	// Load the users Kubernetes config
