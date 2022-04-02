@@ -10,6 +10,7 @@ https://github.com/cert-manager/cert-manager/releases/tag/v1.7.2
     -   [源码目录结构说明](#源码目录结构说明)
     -   [架构解析](#架构解析)
         -   [各controller的注册流程](#各controller的注册流程)
+        -   [controller的工作流程](#controller的工作流程)
     
     
 ## 源码目录结构说明
