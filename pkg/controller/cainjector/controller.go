@@ -126,8 +126,11 @@ func (r *genericInjectReconciler) Reconcile(_ context.Context, req ctrl.Request)
 	log := r.log.WithValues(r.resourceName, req.NamespacedName)
 
 	// fetch the target object
+	// 找到事件对应的资源模型
 	target := r.injector.NewTarget()
+	// 利用Client 获取对应资源模型信息
 	if err := r.Client.Get(ctx, req.NamespacedName, target.AsObject()); err != nil {
+		// 这里如果Client 没有在指定的命名空间下获取对应的资源模型实例，会返回一个空的Result对象，同时不再将其压入工作队列。
 		if dropNotFound(err) == nil {
 			// don't requeue on deletions, which yield a non-found object
 			log.V(logf.DebugLevel).Info("ignoring", "reason", "not found", "err", err)
@@ -151,12 +154,14 @@ func (r *genericInjectReconciler) Reconcile(_ context.Context, req ctrl.Request)
 	}
 
 	// ensure that it wants injection
+	// 获取到Obj 实例对应的meta信息后，通过写入到Reconciler实例中的canDataSource 队列匹配到事件对应的指定source
 	dataSource, err := r.caDataSourceFor(log, metaObj)
 	if err != nil {
 		log.V(logf.DebugLevel).Info("failed to determine ca data source for injectable")
 		return ctrl.Result{}, nil
 	}
 
+	// 调用接口中的ReadCA 方法获取到caData
 	caData, err := dataSource.ReadCA(ctx, log, metaObj)
 	if err != nil {
 		log.Error(err, "failed to read CA from data source")
@@ -168,9 +173,11 @@ func (r *genericInjectReconciler) Reconcile(_ context.Context, req ctrl.Request)
 	}
 
 	// actually do the injection
+	// 在成功获取到CA内容后，通过注入目标Target中实现的setCA方法将CA注入到对应的目标中。
 	target.SetCA(caData)
 
 	// actually update with injected CA data
+	// 注意，最后又通过Client的Update方法将其写入目标对应的Object 实例中，此时才算完成了整个CA注入的一次调谐流程。
 	if err := r.Client.Update(ctx, target.AsObject()); err != nil {
 		log.Error(err, "unable to update target object with new CA data")
 		return ctrl.Result{}, err

@@ -131,6 +131,7 @@ servers and webhook servers.`,
 }
 
 func (o InjectorControllerOptions) RunInjectorController(ctx context.Context) error {
+	// 创建Manager 实例
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                        api.Scheme,
 		Namespace:                     o.Namespace,
@@ -210,6 +211,7 @@ func (o InjectorControllerOptions) RunInjectorController(ctx context.Context) er
 	// Never retry if the controller exits cleanly.
 	g.Go(func() (err error) {
 		for {
+			// 从cert-manager 对应的certificate CRD中寻找需要被注入的CA 内容
 			err = cainjector.RegisterCertificateBased(gctx, mgr)
 			if err == nil {
 				return
@@ -229,6 +231,7 @@ func (o InjectorControllerOptions) RunInjectorController(ctx context.Context) er
 	// We do not retry this controller because it only interacts with core APIs
 	// which should always be in a working state.
 	g.Go(func() (err error) {
+		// 从cert-manager 指定secret或kubeconfig 中寻找需要被注入的CA 内容
 		if err = cainjector.RegisterSecretBased(gctx, mgr); err != nil {
 			return fmt.Errorf("error registering secret controller: %v", err)
 		}

@@ -221,13 +221,20 @@ func (c *secretDataSource) ReadCA(ctx context.Context, log logr.Logger, metaObj 
 
 func (c *secretDataSource) ApplyTo(ctx context.Context, mgr ctrl.Manager, setup injectorSetup, controller controller.Controller, ca cache.Cache) error {
 	typ := setup.injector.NewTarget().AsObject()
+	// 将injectableCAFromIndexer函数中返回的指定CA 源 secret 模型的index 值写人到被注入对象的一个指定的field中
+	// 这里会插入到指定webhook 中的.metadata.annotations.inject-ca-from下面。
 	if err := ca.IndexField(ctx, typ, injectFromSecretPath, injectableCAFromSecretIndexer); err != nil {
 		return err
 	}
+	// 添加到指定目标Secret 模型的监听，并注册监听到的目标事件和对应的事件处理handler 之间的映射关系Mapper
+	// 这里代码通过controller-runtime/handler 中的EnqueueRequestsFromMapFunc 结构体封装了对应的Mapper 对象，
+	// 而在EnqueueRequestsFromMapFunc 中实现了增、删、改等事件对应的EventHandler 处理函数。
 	if err := controller.Watch(source.NewKindWithCache(&corev1.Secret{}, ca),
 		handler.EnqueueRequestsFromMapFunc((&secretForInjectableMapper{
-			Client:             ca,
-			log:                ctrl.Log.WithName("secret-mapper"),
+			Client: ca,
+			log:    ctrl.Log.WithName("secret-mapper"),
+			// 定义了如何一个监听到的Secret 目标对象转换为controller-runtime 中对应的事件请求Request 的对应逻辑。
+			// 在同一个builder实例中可以多次调用Watch方法，从而实现在一级 CRD模型监控的基础上对其他相关二级资源的监控注册。
 			secretToInjectable: buildSecretToInjectableFunc(setup.listType, setup.resourceName),
 		}).Map),
 	); err != nil {

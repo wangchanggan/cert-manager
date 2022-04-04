@@ -77,6 +77,9 @@ var (
 // graduation state of the injector decides how to log no kind/resource match errors
 func registerAllInjectors(ctx context.Context, groupName string, mgr ctrl.Manager, sources []caDataSource, client client.Client, ca cache.Cache) error {
 	controllers := make([]controller.Controller, len(injectorSetups))
+	// 遍历所有已经安装的证书注入对象（包括MutatingWebhook、ValidatingWebhook、APIService 和cert-manager CRD)，并调用安装注入对象的注册方法Register构建对应的controller
+	// 而每个安装注入对象中的injector 字段会定义一个对应的Injector 实例，该实例包含了一个创建对应注入模型目标的NewTarget方法，
+	// 在每个Target目标对象中又实现了不同的AsObject 和SetCA 方法，用于最后在Reconcile 函数中进行在目标资源上的CA 注入。
 	for i, setup := range injectorSetups {
 		controller, err := newGenericInjectionController(ctx, groupName, mgr, setup, sources, ca, client)
 		if err != nil {
@@ -148,6 +151,7 @@ func newGenericInjectionController(ctx context.Context, groupName string, mgr ct
 		return nil, err
 	}
 
+	// 遍历之前已经完成初始化的caDataSource对象，调用其ApplyTo 方法建立controller对指定CA 源模型的监听
 	for _, s := range sources {
 		if err := s.ApplyTo(ctx, mgr, setup, c, ca); err != nil {
 			return nil, err
@@ -209,6 +213,8 @@ func RegisterSecretBased(ctx context.Context, mgr ctrl.Manager) error {
 		ctx,
 		"secret",
 		mgr,
+		// 初始化证书的两种来源——相定的secret 和kubeconfig 对应的caDataSource对象，并在caDataSource对象中封装一组接口，
+		// 用于面向不同的证书插入对象指定从具有哪些annotation 标签的资源模型Object上获取CA 、获取CA 的具体方法以及在对应的controllerbuilder中增加对指定资源模型的监听。
 		[]caDataSource{
 			&secretDataSource{client: cache},
 			&kubeconfigDataSource{},

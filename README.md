@@ -4,15 +4,17 @@ Source Code From
 https://github.com/cert-manager/cert-manager/releases/tag/v1.7.2
 
 ## 目录
-
--   [Kubernetes源码分析](#kubernetes源码分析)
+-   [cert-manager源码分析](#cert-manager源码分析)
     -   [目录](#目录)
     -   [源码目录结构说明](#源码目录结构说明)
-    -   [架构解析](#架构解析)
+    -   [cert-manager 组件架构解析](#cert-manager-组件架构解析)
         -   [各controller的注册流程](#各controller的注册流程)
         -   [controller的工作流程](#controller的工作流程)
-    
-    
+    -   [基于controller-runtime的cainjector架构解析](#基于controller-runtime的cainjector架构解析)
+        -   [cainjector 的启动流程](#cainjector-的启动流程)
+        -   [cainjector 的 Reconcile 函数](#cainjector-的-reconcile-函数)
+
+
 ## 源码目录结构说明
 | 源码目录 | 说明 |
 | :----: | :---- |
@@ -25,7 +27,7 @@ https://github.com/cert-manager/cert-manager/releases/tag/v1.7.2
 
 
 
-## 架构解析
+## cert-manager 组件架构解析
 ### 各controller的注册流程
 ![image](docs/controllers_registration.png)
 
@@ -44,3 +46,12 @@ pkg/controller/register.go:46
 
 ### controller的工作流程
 ![image](docs/controllers_work.png)
+
+
+## 基于controller-runtime的cainjector架构解析
+
+### cainjector 的启动流程
+![image](docs/cainjector_start.png)
+
+### cainjector 的 Reconcile 函数
+pkg/controller/cainjector/controller.go:124
